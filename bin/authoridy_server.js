@@ -99,13 +99,15 @@ async function doAuthorIDy(req,res) {
 }
 
 function parsePath(url) {
-    const parts = url.substring(AUTHOR_PREFIX.length + 2).split("/",3);
-    if (parts.length != 3) {
+    const [handler, sinceDate, ...rest] = url.substring(AUTHOR_PREFIX.length + 2).split("/");
+    const contributorID = rest.join("/");
+
+    if (! handler || ! sinceDate || ! contributorID) {
         return null;
     }
 
-    if (parts[1].match(/^(\*|\d{8})$/)) {
-        return { handler: parts[0] , sinceDate: parts[1], contributorID: parts[2] }
+    if (sinceDate.match(/^(\*|\d{8})$/)) {
+        return { handler: handler , sinceDate: sinceDate, contributorID: contributorID }
     }
     else {
         return null;
