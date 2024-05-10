@@ -4,5 +4,12 @@
     "dotenv": "^16.4.5",
     "mellon-server": "^1.0.4",
     "node-fetch": "1.7.3"
-  }
+  },
+  "name": "authoridy-server",
+  "version": "1.0.0",
+  "description": "A prototype authorIDy server",
+  "main": "index.js",
+  "repository": "https://github.com/MellonScholarlyCommunication/authoridy-server",
+  "author": "Patrick Hochstenbach <Patrick.Hochstenbach@UGent.be>",
+  "license": "MIT"
 }

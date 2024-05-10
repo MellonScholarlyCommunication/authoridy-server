@@ -1,18 +1,38 @@
 #!/usr/bin/env node
 
+const fs = require('fs');
 const fsPath = require('path');
 const { start_server } = require('mellon-server');
 const { program } = require('commander');
 const log4js = require('log4js');
-const logger = log4js.getLogger();
 
 require('dotenv').config();
+
+const logger = getLogger();
+
+function getLogger() {
+    const logger = log4js.getLogger();
+
+    if (process.env.LOG4JS) {
+        log4js.configure({
+            appenders: {
+            stderr: { type: 'stderr' }
+            },
+            categories: {
+            default: { appenders: ['stderr'], level: process.env.LOG4JS }
+            }
+        });
+    }
+
+    return logger;
+}
 
 const HOST = process.env.AUTHORIDY_HOST ?? 'localhost';
 const PORT = process.env.AUTHORIDY_PORT ?? 8000;
 const PUBLIC_PATH = process.env.AUTHORIDY_PUBLIC_PATH ?? './public';
 const AUTHOR_PREFIX = process.env.AUTHORIDY_PREFIX ?? 'author';
-const AUTHORIDY_HANDLER = process.env.AUTHORIDY_HANDLER ?? handle;
+
+let HANDLERS = {};
 
 program
   .name('authoridy-server')
@@ -24,7 +44,15 @@ program
   .option('--host <host>','host',HOST)
   .option('--port <port>','port',PORT)
   .option('--public <public>','public',PUBLIC_PATH)
-  .action( (options) => {
+  .argument('<handlers>','handlers')
+  .action( (handlers,options) => {
+    // Dynamically load all handlers
+    HANDLERS = JSON.parse(fs.readFileSync(handlers, { encoding: 'utf-8'}));
+    for (let key in HANDLERS) {
+        const path = HANDLERS[key];
+        const handler = dynamic_handler(path,null);
+        HANDLERS[key] = handler;   
+    }
     options['registry'] = [{ path : `${AUTHOR_PREFIX}/.*` , do: doAuthorIDy }];
     start_server(options);
   });
@@ -44,12 +72,12 @@ async function doAuthorIDy(req,res) {
     if (!path) {
         logger.error(`failed to parse ${req.url}`);
         res.writeHead(400);
-        res.end('Bad Request');
+        res.end('Invalid url format');
         return; 
     }
 
     try {
-        const handler = dynamic_handler(AUTHORIDY_HANDLER);
+        const handler = HANDLERS[path['handler']];
 
         const body = await handler(path['contributorID'], path['sinceDate']);
 
@@ -59,8 +87,8 @@ async function doAuthorIDy(req,res) {
         }
         else {
             logger.error(`failed to handle_contributor ${req.url}`);
-            res.writeHead(500);
-            res.end('Oops');
+            res.writeHead(404);
+            res.end('Unknown contributor identifier');
         }
     }
     catch (e) {
@@ -71,33 +99,17 @@ async function doAuthorIDy(req,res) {
 }
 
 function parsePath(url) {
-    const parts = url.substring(AUTHOR_PREFIX.length + 2).split("/",2);
-    if (parts.length != 2) {
+    const parts = url.substring(AUTHOR_PREFIX.length + 2).split("/",3);
+    if (parts.length != 3) {
         return null;
     }
 
-    if (parts[0].match(/^(\*|\d{8})$/)) {
-        return { sinceDate: parts[0], contributorID: parts[1] }
+    if (parts[1].match(/^(\*|\d{8})$/)) {
+        return { handler: parts[0] , sinceDate: parts[1], contributorID: parts[2] }
     }
     else {
         return null;
     }
-}
-
-function handle(id,date) {
-    return {
-        "contributor": id,
-        "contributions": [
-          {
-            "contribution-page": "https://mirepo.org/item/9876",
-            "accession-date": "2023-01-04"
-          },
-          {
-            "contribution-page": "https://mirepo.org/item/5432",
-            "accession-date": "2022-03-20"
-          }
-        ]
-    };
 }
 
 function dynamic_handler(handler,fallback) {

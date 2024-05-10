@@ -1,0 +1,5 @@
+{
+    "demo" : "lib/demo_handler.js",
+    "biblio" : "lib/biblio_handler.js",
+    "zenodo" : "lib/zenodo_handler.js"   
+}
