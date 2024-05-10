@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
+const nodeUrl = require('url');
 const fsPath = require('path');
 const { start_server } = require('mellon-server');
 const { program } = require('commander');
@@ -29,6 +30,7 @@ function getLogger() {
 
 const HOST = process.env.AUTHORIDY_HOST ?? 'localhost';
 const PORT = process.env.AUTHORIDY_PORT ?? 8000;
+const BASE = process.env.AUTHORIDY_BASE ?? `http://localhost:${PORT}`;
 const PUBLIC_PATH = process.env.AUTHORIDY_PUBLIC_PATH ?? './public';
 const AUTHOR_PREFIX = process.env.AUTHORIDY_PREFIX ?? 'author';
 
@@ -43,6 +45,7 @@ program
   .command('start-server')
   .option('--host <host>','host',HOST)
   .option('--port <port>','port',PORT)
+  .option('--base <base>','base',BASE)
   .option('--public <public>','public',PUBLIC_PATH)
   .argument('<handlers>','handlers')
   .action( (handlers,options) => {
@@ -59,7 +62,10 @@ program
 
 program.parse();
 
+// req = IncomingMessage
+// res = ServerResponse 
 async function doAuthorIDy(req,res) {
+
     if (req.method !== 'GET') {
         logger.error(`tried method ${req.method} on inbox : forbidden`);
         res.writeHead(403);
@@ -76,14 +82,26 @@ async function doAuthorIDy(req,res) {
         return; 
     }
 
+    logger.debug(path);
+
     try {
         const handler = HANDLERS[path['handler']];
 
-        const body = await handler(path['contributorID'], path['sinceDate']);
+        const result = await handler(path['contributorID'], path['sinceDate'], path['query']);
 
-        if (body) {
+        if (result) {
             res.setHeader('Content-Type','application/json');
-            res.end(JSON.stringify(body,null,2));
+            const linkHeaders = [];
+            if (result['prev']) {
+                linkHeaders.push(`<${BASE}${req.url}?${result['prev']}>; rel="prev"`);
+            }
+            if (result['next']) {
+                linkHeaders.push(`<${BASE}${req.url}?${result['next']}>; rel="next"`);
+            }
+            if (linkHeaders.length) {
+                res.setHeader('Link',linkHeaders);
+            }
+            res.end(JSON.stringify(result['result'],null,2));
         }
         else {
             logger.error(`failed to handle_contributor ${req.url}`);
@@ -100,14 +118,23 @@ async function doAuthorIDy(req,res) {
 
 function parsePath(url) {
     const [handler, sinceDate, ...rest] = url.substring(AUTHOR_PREFIX.length + 2).split("/");
-    const contributorID = rest.join("/");
+    const path = rest.join("/");
 
-    if (! handler || ! sinceDate || ! contributorID) {
+    if (! handler || ! sinceDate || ! path) {
         return null;
     }
 
+    const [contributorID, ..._rest2] = path.split("?");
+
+    const query = nodeUrl.parse(url, true).query;
+
     if (sinceDate.match(/^(\*|\d{8})$/)) {
-        return { handler: handler , sinceDate: sinceDate, contributorID: contributorID }
+        return { 
+            handler: handler , 
+            sinceDate: sinceDate, 
+            contributorID: contributorID,
+            query: query
+        };
     }
     else {
         return null;
