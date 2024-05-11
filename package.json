@@ -5,6 +5,9 @@
     "mellon-server": "^1.0.4",
     "node-fetch": "1.7.3"
   },
+  "scripts" : {
+     "server": "./bin/authoridy_server.js start-server handlers.json"
+  },
   "name": "authoridy-server",
   "version": "1.0.0",
   "description": "A prototype authorIDy server",
