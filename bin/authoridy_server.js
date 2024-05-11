@@ -66,7 +66,7 @@ program.parse();
 // res = ServerResponse 
 async function doAuthorIDy(req,res) {
 
-    if (req.method !== 'GET') {
+    if (req.method !== 'GET' || req.method !== 'HEAD') {
         logger.error(`tried method ${req.method} on inbox : forbidden`);
         res.writeHead(403);
         res.end('Forbidden');
@@ -101,7 +101,13 @@ async function doAuthorIDy(req,res) {
             if (linkHeaders.length) {
                 res.setHeader('Link',linkHeaders);
             }
-            res.end(JSON.stringify(result['result'],null,2));
+
+            if (req.method === 'GET') {
+                res.end(JSON.stringify(result['result'],null,2));
+            }
+            else {
+                res.end('');
+            }
         }
         else {
             logger.error(`failed to handle_contributor ${req.url}`);
