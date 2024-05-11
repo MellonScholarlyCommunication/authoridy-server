@@ -92,11 +92,12 @@ async function doAuthorIDy(req,res) {
         if (result) {
             res.setHeader('Content-Type','application/json');
             const linkHeaders = [];
+            const myurl = `${BASE}${req.url}`.replaceAll(/\?.*/g,'');
             if (result['prev']) {
-                linkHeaders.push(`<${BASE}${req.url}?${result['prev']}>; rel="prev"`);
+                linkHeaders.push(`<${myurl}?${result['prev']}>; rel="prev"`);
             }
             if (result['next']) {
-                linkHeaders.push(`<${BASE}${req.url}?${result['next']}>; rel="next"`);
+                linkHeaders.push(`<${myurl}?${result['next']}>; rel="next"`);
             }
             if (linkHeaders.length) {
                 res.setHeader('Link',linkHeaders);
