@@ -66,7 +66,7 @@ program.parse();
 // res = ServerResponse 
 async function doAuthorIDy(req,res) {
 
-    if (req.method !== 'GET' || req.method !== 'HEAD') {
+    if (! (req.method === 'GET' || req.method === 'HEAD')) {
         logger.error(`tried method ${req.method} on inbox : forbidden`);
         res.writeHead(403);
         res.end('Forbidden');
